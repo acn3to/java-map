@@ -1,27 +1,30 @@
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Main {
     private static final Map<String, Student> studentsMap = new HashMap<>();
 
     public static void main(String[] args) {
-        studentsMap.put("Rock Lee", new Student("Rock Lee", 9.5));
-        studentsMap.put("Ichigo", new Student("Ichigo", 8.0));
-        studentsMap.put("Gengar", new Student("Gengar", 7.5));
-        studentsMap.put("Balrog", new Student("Balrog", 9.0));
-        studentsMap.put("Vader", new Student("Vader", 8.5));
+        studentsMap.put("Rock Lee", new Student("Rock Lee", 90.5));
+        studentsMap.put("Ichigo", new Student("Ichigo", 80.0));
+        studentsMap.put("Gengar", new Student("Gengar", 70.54));
+        studentsMap.put("Balrog", new Student("Balrog", 92.01));
+        studentsMap.put("Vader", new Student("Vader", 88.5));
 
         System.out.println("Map Content:");
         studentsMap.forEach((name, student) -> System.out.println(name + ": " + student.getGrade()));
 
         System.out.println("\nGrade of Ichigo: " + retrieveGrade("Ichigo"));
-        System.out.println("Students with grades above 8.5: " + listStudentsAboveGrade(8.5));
+        System.out.println("Students with grades above 80.5: " + listStudentsAboveGrade(80.5));
 
-        List<String> removedStudents = removeStudentsBelowGrade(8.0);
+        List<String> removedStudents = removeStudentsBelowGrade(80.0);
         System.out.println("Removed students: " + removedStudents);
 
-        Map<String, Student> sortedStudents = sortStudentsByGrade();
+        Map<String, List<Student>> sortedStudents = sortStudentsByGrade();
         System.out.println("\nSorted students:");
-        sortedStudents.forEach((name, student) -> System.out.println(name + ": " + student.getGrade()));
+        sortedStudents.values().forEach(students ->
+                students.forEach(student -> System.out.println(student.getName() + ": " + student.getGrade()))
+        );
 
         Map<String, List<Student>> groupedStudents = groupStudentsByGradeRange();
         System.out.println("\nGrouped students:");
@@ -32,62 +35,50 @@ public class Main {
     }
 
     public static double retrieveGrade(String name) {
-        Student student = studentsMap.get(name);
-        if (student != null) {
-            return student.getGrade();
-        } else {
-            System.out.println("Student " + name + " not found.");
-            return -1;
-        }
+        return studentsMap.entrySet().stream()
+                .filter(entry -> entry.getKey().equals(name))
+                .findFirst()
+                .map(entry -> entry.getValue().getGrade())
+                .orElseGet(() -> {
+                    System.out.println("Student " + name + " not found.");
+                    return -1.0;
+                });
     }
 
     public static List<String> listStudentsAboveGrade(double minGrade) {
-        List<String> studentNames = new ArrayList<>();
-        for (Map.Entry<String, Student> entry : studentsMap.entrySet()) {
-            if (entry.getValue().getGrade() > minGrade) {
-                studentNames.add(entry.getKey());
-            }
-        }
-        return studentNames;
+        return studentsMap.entrySet().stream()
+                .filter(entry -> entry.getValue().getGrade() > minGrade)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
     }
 
+
     public static List<String> removeStudentsBelowGrade(double limitGrade) {
-        List<String> removedStudents = new ArrayList<>();
-        Iterator<Map.Entry<String, Student>> iterator = studentsMap.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<String, Student> entry = iterator.next();
-            if (entry.getValue().getGrade() < limitGrade) {
-                removedStudents.add(entry.getKey());
-                iterator.remove();
-            }
-        }
+        List<String> removedStudents = studentsMap.entrySet().stream()
+                .filter(entry -> entry.getValue().getGrade() < limitGrade)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+
+        removedStudents.forEach(studentsMap.keySet()::remove);
         return removedStudents;
     }
 
-    public static Map<String, Student> sortStudentsByGrade() {
-        List<Map.Entry<String, Student>> sortedList = new ArrayList<>(studentsMap.entrySet());
-        sortedList.sort((a, b) -> Double.compare(b.getValue().getGrade(), a.getValue().getGrade()));
-
-        Map<String, Student> sortedStudents = new LinkedHashMap<>();
-        for (Map.Entry<String, Student> entry : sortedList) {
-            sortedStudents.put(entry.getKey(), entry.getValue());
-        }
-
-        return sortedStudents;
+    public static Map<String, List<Student>> sortStudentsByGrade() {
+        return studentsMap.values().stream()
+                .collect(Collectors.groupingBy(
+                        student -> calculateGradeRange(student.getGrade()),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
     }
 
     public static Map<String, List<Student>> groupStudentsByGradeRange() {
-        Map<String, List<Student>> groupedStudents = new HashMap<>();
-
-        for (Map.Entry<String, Student> entry : studentsMap.entrySet()) {
-            String gradeRange = calculateGradeRange(entry.getValue().getGrade());
-            if (!groupedStudents.containsKey(gradeRange)) {
-                groupedStudents.put(gradeRange, new ArrayList<>());
-            }
-            groupedStudents.get(gradeRange).add(entry.getValue());
-        }
-
-        return groupedStudents;
+        return studentsMap.values().stream()
+                .collect(Collectors.groupingBy(
+                        student -> calculateGradeRange(student.getGrade()),
+                        HashMap::new,
+                        Collectors.toList()
+                ));
     }
 
     private static String calculateGradeRange(double grade) {
